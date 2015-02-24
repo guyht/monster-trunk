@@ -111,7 +111,7 @@ static std::string colour(int colour, std::string text, bool bg = false)
     if (is_element_colour(colour))
         colour = element_colour(colour, true);
 
-    if (isatty(1))
+    if (true)
     {
         if (!colour)
             return text;
