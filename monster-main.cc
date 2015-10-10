@@ -639,7 +639,7 @@ int main(int argc, char *argv[])
   else if (!strcmp(argv[1], "-name") || !strcmp(argv[1], "--name"))
   {
     seed_rng();
-    string name = make_name(random_int(), false);
+    string name = make_name(random_int(), MNAME_DEFAULT);
     printf("%s\n", name.c_str());
     return 0;
   }
@@ -856,17 +856,11 @@ int main(int argc, char *argv[])
     else
         printf("%i", hplow);
 
-    const int ac = generated ? mac :
-                   nonbase   ? me->AC + mbase->AC
-                             : me->AC;
-    const int ev = generated ? mev :
-                   nonbase   ? me->ev + mbase->ev
-                             : me->ev;
-    printf(" | AC/EV: %i/%i", ac, ev);
+    printf(" | AC/EV: %i/%i", mac, mev);
 
     std::string defenses;
-    if (mon.spiny_degree() > 0)
-        defenses += colour(YELLOW, make_stringf("(spiny %d)", mon.spiny_degree()));
+    if (mon.is_spiny() > 0)
+        defenses += colour(YELLOW, "(spiny 5d4)");
     if (mons_species(mons_base_type(&mon)) == MONS_MINOTAUR)
         defenses += colour(LIGHTRED, "(headbutt: d20-1)");
     if (defenses != "")
@@ -1120,30 +1114,12 @@ int main(int argc, char *argv[])
         break;
 
       case NUM_MONUSE:  // Can't happen
-        mons_flag(monsterflags, colour(CYAN, "eats bugs"));
+        mons_flag(monsterflags, colour(CYAN, "uses bugs"));
         break;
     }
 
-    switch (me->gmon_eat)
-    {
-      case MONEAT_NOTHING:
-        break;
-      case MONEAT_ITEMS:
-        mons_flag(monsterflags, colour(LIGHTRED, "eats items"));
-        break;
-      case MONEAT_CORPSES:
-        mons_flag(monsterflags, colour(LIGHTRED, "eats corpses"));
-        break;
-      case MONEAT_FOOD:
-        mons_flag(monsterflags, colour(LIGHTRED, "eats food"));
-        break;
-      case MONEAT_DOORS:
-        mons_flag(monsterflags, colour(LIGHTRED, "breaks doors"));
-        break;
-      case NUM_MONEAT:  // Can't happen
-        mons_flag(monsterflags, colour(LIGHTRED, "eats bugs"));
-        break;
-    }
+    mons_check_flag(me->bitfields & M_EAT_ITEMS, monsterflags, colour(LIGHTRED, "eats items"));
+    mons_check_flag(me->bitfields & M_CRASH_DOORS, monsterflags, colour(LIGHTRED, "breaks doors"));
 
     mons_check_flag(mons_wields_two_weapons(&mon), monsterflags, "two-weapon");
     mons_check_flag(mon.is_fighter(), monsterflags, "fighter");
@@ -1164,10 +1140,10 @@ int main(int argc, char *argv[])
                     monsterflags, "spellcaster");
     mons_check_flag(me->bitfields & M_COLD_BLOOD, monsterflags, "cold-blooded");
     mons_check_flag(me->bitfields & M_SEE_INVIS, monsterflags, "see invisible");
-    mons_check_flag(me->fly == FL_LEVITATE, monsterflags, "lev");
-    mons_check_flag(me->fly == FL_WINGED, monsterflags, "fly");
+    mons_check_flag(me->bitfields & M_FLIES, monsterflags, "fly");
     mons_check_flag(me->bitfields & M_FAST_REGEN, monsterflags, "regen");
     mons_check_flag(me->bitfields & M_WEB_SENSE, monsterflags, "web sense");
+    mons_check_flag(mon.is_unbreathing(), monsterflags, "unbreathing");
 
     std::string spell_string = construct_spells(spells, damages);
     if (shapeshifter
@@ -1249,7 +1225,6 @@ int main(int argc, char *argv[])
     res(GREEN, POISON);
     res(BROWN, ACID);
     res(0, STEAM);
-    res(0, ASPHYX);
 
     if (me->bitfields & M_UNBLINDABLE)
       res2(YELLOW, blind, 1);
@@ -1266,16 +1241,13 @@ int main(int argc, char *argv[])
     printf("%s", monsterresistances.c_str());
     printf("%s", monstervulnerabilities.c_str());
 
-    if (me->weight != 0 && me->corpse_thingy != CE_NOCORPSE && me->corpse_thingy != CE_CLEAN)
+    if (me->corpse_thingy != CE_NOCORPSE && me->corpse_thingy != CE_CLEAN)
     {
       printf(" | Chunks: ");
       switch (me->corpse_thingy)
       {
-      case CE_POISONOUS:
-        printf("%s", colour(LIGHTGREEN,"poison").c_str());
-        break;
-      case CE_ROT:
-        printf("%s", colour(LIGHTRED,"rot").c_str());
+      case CE_NOXIOUS:
+        printf("%s", colour(DARKGREY,"noxious").c_str());
         break;
       case CE_MUTAGEN:
         printf("%s", colour(MAGENTA, "mutagenic").c_str());
